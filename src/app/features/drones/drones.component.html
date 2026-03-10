@@ -1,0 +1,170 @@
+<div class="p-6 space-y-5">
+  <!-- 页头 -->
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-xl font-bold text-white">设备管理</h1>
+      <p class="text-gray-500 text-sm mt-0.5">共 {{ total() }} 台设备</p>
+    </div>
+    <button (click)="showBindModal.set(true)"
+      class="flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-sm rounded-lg transition">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+      </svg>
+      绑定新设备
+    </button>
+  </div>
+
+  <!-- 设备表格 -->
+  <div class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="border-b border-gray-800">
+          <th class="text-left px-5 py-3.5 text-gray-400 font-medium">设备名称</th>
+          <th class="text-left px-5 py-3.5 text-gray-400 font-medium">SN 码</th>
+          <th class="text-left px-5 py-3.5 text-gray-400 font-medium">型号</th>
+          <th class="text-left px-5 py-3.5 text-gray-400 font-medium">状态</th>
+          <th class="text-left px-5 py-3.5 text-gray-400 font-medium">电量</th>
+          <th class="text-left px-5 py-3.5 text-gray-400 font-medium">计算模式</th>
+          <th class="text-left px-5 py-3.5 text-gray-400 font-medium">最近心跳</th>
+          <th class="text-left px-5 py-3.5 text-gray-400 font-medium">操作</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-800">
+        @if (loading()) {
+          @for (i of [1,2,3,4,5]; track i) {
+            <tr>
+              @for (j of [1,2,3,4,5,6,7,8]; track j) {
+                <td class="px-5 py-4">
+                  <div class="h-4 bg-gray-800 rounded animate-pulse"></div>
+                </td>
+              }
+            </tr>
+          }
+        } @else {
+          @for (drone of drones(); track drone.id) {
+            <tr class="hover:bg-gray-800/50 transition">
+              <td class="px-5 py-4">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-8 h-8 bg-gray-800 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <svg class="w-4 h-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                    </svg>
+                  </div>
+                  <span class="text-white font-medium">{{ drone.name }}</span>
+                </div>
+              </td>
+              <td class="px-5 py-4 text-gray-400 font-mono text-xs">{{ drone.sn }}</td>
+              <td class="px-5 py-4 text-gray-400">{{ drone.model || '--' }}</td>
+              <td class="px-5 py-4">
+                <div class="flex items-center gap-1.5">
+                  <div class="w-1.5 h-1.5 rounded-full"
+                    [class.bg-green-400]="drone.status === 'in_task'"
+                    [class.bg-cyan-400]="drone.status === 'online'"
+                    [class.bg-gray-500]="drone.status === 'offline'"
+                    [class.animate-pulse]="drone.status !== 'offline'">
+                  </div>
+                  <span [ngClass]="getStatusClass(drone.status)">{{ getStatusLabel(drone.status) }}</span>
+                </div>
+              </td>
+              <td class="px-5 py-4">
+                @if (drone.battery_level !== null) {
+                  <div class="flex items-center gap-1.5">
+                    <div class="w-16 h-1.5 bg-gray-700 rounded-full">
+                      <div class="h-full rounded-full"
+                        [class.bg-green-500]="(drone.battery_level || 0) > 50"
+                        [class.bg-yellow-500]="(drone.battery_level || 0) <= 50 && (drone.battery_level || 0) > 20"
+                        [class.bg-red-500]="(drone.battery_level || 0) <= 20"
+                        [style.width.%]="drone.battery_level">
+                      </div>
+                    </div>
+                    <span class="text-gray-400 text-xs">{{ drone.battery_level }}%</span>
+                  </div>
+                } @else {
+                  <span class="text-gray-600">--</span>
+                }
+              </td>
+              <td class="px-5 py-4">
+                <span class="px-2 py-0.5 text-xs rounded-full"
+                  [class.bg-blue-900/30]="drone.compute_mode === 'cloud'"
+                  [class.text-blue-400]="drone.compute_mode === 'cloud'"
+                  [class.bg-purple-900/30]="drone.compute_mode === 'edge'"
+                  [class.text-purple-400]="drone.compute_mode === 'edge'">
+                  {{ drone.compute_mode === 'cloud' ? '云端' : '边缘' }}
+                </span>
+              </td>
+              <td class="px-5 py-4 text-gray-500 text-xs">
+                {{ drone.last_heartbeat_at ? (drone.last_heartbeat_at | date:'MM-dd HH:mm') : '--' }}
+              </td>
+              <td class="px-5 py-4">
+                <div class="flex items-center gap-2">
+                  <button (click)="goMonitor(drone.id)"
+                    class="text-xs text-cyan-400 hover:text-cyan-300 transition">监控</button>
+                  <button (click)="unbind(drone.id)"
+                    class="text-xs text-red-400 hover:text-red-300 transition">解绑</button>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="8" class="text-center py-12 text-gray-500">暂无设备，请点击"绑定新设备"</td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- 绑定设备弹窗 -->
+@if (showBindModal()) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+    <div class="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-md shadow-2xl">
+      <h3 class="text-white font-semibold mb-5">绑定新设备</h3>
+      <form [formGroup]="bindForm" (ngSubmit)="bind()" class="space-y-4">
+        <div>
+          <label class="block text-sm text-gray-400 mb-1.5">设备名称</label>
+          <input formControlName="name" type="text" placeholder="如：巡逻无人机-01"
+            class="w-full px-3 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-cyan-500"/>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm text-gray-400 mb-1.5">设备 SN 码</label>
+            <input formControlName="sn" type="text" placeholder="设备SN码"
+              class="w-full px-3 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-cyan-500"/>
+          </div>
+          <div>
+            <label class="block text-sm text-gray-400 mb-1.5">绑定密钥</label>
+            <input formControlName="secret_key" type="password" placeholder="设备密钥"
+              class="w-full px-3 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-cyan-500"/>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm text-gray-400 mb-1.5">型号（选填）</label>
+            <input formControlName="model" type="text" placeholder="如：DJI Mavic 3"
+              class="w-full px-3 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-cyan-500"/>
+          </div>
+          <div>
+            <label class="block text-sm text-gray-400 mb-1.5">计算模式</label>
+            <select formControlName="compute_mode"
+              class="w-full px-3 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-cyan-500">
+              <option value="cloud">云端推理</option>
+              <option value="edge">边缘推理</option>
+            </select>
+          </div>
+        </div>
+        @if (bindError()) {
+          <div class="text-red-400 text-sm">{{ bindError() }}</div>
+        }
+        <div class="flex gap-3 pt-2">
+          <button type="button" (click)="showBindModal.set(false)"
+            class="flex-1 py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm rounded-lg transition">取消</button>
+          <button type="submit" [disabled]="bindLoading() || bindForm.invalid"
+            class="flex-1 py-2.5 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white text-sm rounded-lg transition">
+            {{ bindLoading() ? '绑定中...' : '确认绑定' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}

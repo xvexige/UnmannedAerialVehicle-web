@@ -1,3 +1,14 @@
 /* You can add global styles to this file, and also import other style files */
 
 @import "tailwindcss";
+@import "ol/ol.css";
+
+/* 天地图矢量底图暗色滤镜 */
+.dark-map-layer {
+  filter: invert(100%) hue-rotate(180deg) brightness(0.85) saturate(0.8);
+}
+
+/* 隐藏 OL 默认 attribution */
+.ol-attribution {
+  display: none !important;
+}

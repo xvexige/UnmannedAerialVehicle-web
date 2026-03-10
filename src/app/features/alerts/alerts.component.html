@@ -1,0 +1,75 @@
+<div class="p-6 space-y-5">
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-xl font-bold text-white">告警中心</h1>
+      <p class="text-gray-500 text-sm mt-0.5">共 {{ total() }} 条告警</p>
+    </div>
+    <!-- 过滤器 -->
+    <div class="flex gap-2">
+      <select (change)="filterLevel.set($any($event.target).value); load()"
+        class="px-3 py-2 bg-gray-800 border border-gray-700 text-white text-sm rounded-lg focus:outline-none focus:border-cyan-500">
+        <option value="">全部级别</option>
+        <option value="critical">严重</option>
+        <option value="warning">警告</option>
+        <option value="info">信息</option>
+      </select>
+      <select (change)="filterStatus.set($any($event.target).value); load()"
+        class="px-3 py-2 bg-gray-800 border border-gray-700 text-white text-sm rounded-lg focus:outline-none focus:border-cyan-500">
+        <option value="">全部状态</option>
+        <option value="unread">未读</option>
+        <option value="read">已读</option>
+        <option value="resolved">已处理</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="space-y-2">
+    @if (loading()) {
+      @for (i of [1,2,3,4,5]; track i) {
+        <div class="h-20 bg-gray-900 border border-gray-800 rounded-xl animate-pulse"></div>
+      }
+    } @else {
+      @for (alert of alerts(); track alert.id) {
+        <div class="bg-gray-900 border rounded-xl p-4 flex gap-4 items-start transition hover:bg-gray-800/50"
+          [ngClass]="alert.level === 'critical' ? 'border-red-900/50' : alert.level === 'warning' ? 'border-yellow-900/50' : 'border-gray-800'">
+          @if (alert.snapshot_url) {
+            <img [src]="alert.snapshot_url" alt="截图" class="w-16 h-12 object-cover rounded-lg flex-shrink-0 bg-gray-800"/>
+          }
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="px-2 py-0.5 text-xs rounded border" [ngClass]="getLevelClass(alert.level)">
+                {{ alert.level.toUpperCase() }}
+              </span>
+              <span class="text-white font-medium text-sm">{{ getTypeLabel(alert.type) }}</span>
+              @if (alert.status === 'unread') {
+                <span class="w-1.5 h-1.5 bg-red-400 rounded-full animate-pulse"></span>
+              }
+            </div>
+            <p class="text-gray-400 text-sm mt-1 truncate">{{ alert.description || '暂无描述' }}</p>
+            <div class="text-gray-600 text-xs mt-1.5">{{ alert.triggered_at | date:'yyyy-MM-dd HH:mm:ss' }}</div>
+          </div>
+          <div class="flex flex-col gap-1.5 flex-shrink-0 text-xs">
+            <span class="px-2 py-1 rounded text-center"
+              [class.bg-gray-800]="alert.status === 'read'"
+              [class.text-gray-400]="alert.status === 'read'"
+              [class.bg-green-900/30]="alert.status === 'resolved'"
+              [class.text-green-400]="alert.status === 'resolved'"
+              [class.bg-red-900/30]="alert.status === 'unread'"
+              [class.text-red-400]="alert.status === 'unread'">
+              {{ getStatusLabel(alert.status) }}
+            </span>
+            @if (alert.status !== 'resolved') {
+              <button (click)="resolve(alert.id)"
+                class="px-2 py-1 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded transition">处理</button>
+            }
+          </div>
+        </div>
+      } @empty {
+        <div class="text-center py-16 text-gray-500">
+          <div class="text-4xl mb-3">✓</div>
+          暂无告警
+        </div>
+      }
+    }
+  </div>
+</div>

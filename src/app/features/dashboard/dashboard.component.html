@@ -1,0 +1,145 @@
+<div class="relative h-full flex flex-col overflow-hidden bg-gray-950">
+
+  <!-- OpenLayers 地图容器（铺满底层） -->
+  <div #mapContainer class="absolute inset-0 z-0"></div>
+
+  <!-- 顶部标题栏 -->
+  <div class="relative z-10 flex items-center justify-between px-6 py-3 bg-gradient-to-b from-gray-950/90 to-transparent pointer-events-none">
+    <h1 class="text-white font-bold text-lg tracking-wider">
+      <span class="text-cyan-400">◉</span> 全局驾驶舱
+    </h1>
+    <div class="text-gray-400 text-sm">{{ today }}</div>
+  </div>
+
+  <!-- 左侧宏观数据面板 -->
+  <div class="absolute left-4 top-14 bottom-4 w-64 z-10 flex flex-col gap-3 pointer-events-auto">
+
+    <!-- 概览统计卡 -->
+    <div class="bg-gray-900/85 backdrop-blur-sm border border-gray-700/50 rounded-xl p-4 space-y-3">
+      <h3 class="text-cyan-400 text-xs font-semibold tracking-widest uppercase">今日概览</h3>
+
+      @if (loading()) {
+        <div class="space-y-2">
+          @for (i of [1,2,3,4]; track i) {
+            <div class="h-12 bg-gray-800/60 rounded-lg animate-pulse"></div>
+          }
+        </div>
+      } @else if (overview(); as ov) {
+        <div class="grid grid-cols-2 gap-2">
+          <div class="bg-gray-800/60 rounded-lg p-3 border border-gray-700/30 text-center">
+            <div class="text-2xl font-bold text-cyan-400">{{ ov.total_flights_today }}</div>
+            <div class="text-gray-400 text-xs mt-0.5">今日起飞</div>
+          </div>
+          <div class="bg-gray-800/60 rounded-lg p-3 border border-gray-700/30 text-center">
+            <div class="text-2xl font-bold text-green-400">{{ ov.online_drones }}</div>
+            <div class="text-gray-400 text-xs mt-0.5">在线设备</div>
+          </div>
+          <div class="bg-gray-800/60 rounded-lg p-3 border border-gray-700/30 text-center">
+            <div class="text-2xl font-bold text-yellow-400">{{ ov.total_detections_today }}</div>
+            <div class="text-gray-400 text-xs mt-0.5">累计识别</div>
+          </div>
+          <div class="bg-gray-800/60 rounded-lg p-3 border border-gray-700/30 text-center">
+            <div class="text-2xl font-bold text-red-400">{{ ov.unread_alerts }}</div>
+            <div class="text-gray-400 text-xs mt-0.5">未读告警</div>
+          </div>
+        </div>
+
+        <!-- 设备在线率进度条 -->
+        <div>
+          <div class="flex justify-between text-xs text-gray-400 mb-1.5">
+            <span>设备在线率</span>
+            <span>
+              {{ ov.total_drones > 0 ? ((ov.online_drones / ov.total_drones) * 100 | number:'1.0-0') : 0 }}%
+            </span>
+          </div>
+          <div class="h-1.5 bg-gray-700 rounded-full overflow-hidden">
+            <div class="h-full bg-gradient-to-r from-cyan-500 to-green-500 rounded-full transition-all duration-500"
+              [style.width.%]="ov.total_drones > 0 ? (ov.online_drones / ov.total_drones) * 100 : 0">
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- 在线无人机快捷列表 -->
+    <div class="bg-gray-900/85 backdrop-blur-sm border border-gray-700/50 rounded-xl p-4 flex-1 overflow-hidden flex flex-col">
+      <h3 class="text-cyan-400 text-xs font-semibold tracking-widest uppercase mb-3">在线无人机</h3>
+      <div class="space-y-1.5 overflow-y-auto flex-1">
+        @for (drone of drones(); track drone.id) {
+          @if (drone.status !== 'offline') {
+            <div (click)="navigateToMonitor(drone.id)"
+              class="flex items-center gap-2.5 p-2.5 bg-gray-800/60 border border-gray-700/30 rounded-lg cursor-pointer hover:border-cyan-500/50 hover:bg-gray-700/60 transition">
+              <div class="w-2 h-2 rounded-full flex-shrink-0"
+                [class.bg-green-400]="drone.status === 'in_task'"
+                [class.bg-cyan-400]="drone.status === 'online'"
+                [class.animate-pulse]="drone.status === 'in_task'">
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="text-white text-xs font-medium truncate">{{ drone.name }}</div>
+                <div class="text-gray-500 text-xs">
+                  {{ drone.status === 'in_task' ? '任务中' : '待机' }}
+                  @if (drone.battery_level) { · 🔋{{ drone.battery_level }}% }
+                </div>
+              </div>
+              <svg class="w-3.5 h-3.5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+              </svg>
+            </div>
+          }
+        } @empty {
+          <div class="text-gray-500 text-xs text-center py-6">暂无在线设备</div>
+        }
+      </div>
+    </div>
+  </div>
+
+  <!-- 右侧实时告警面板 -->
+  <div class="absolute right-4 top-14 bottom-4 w-72 z-10 pointer-events-auto">
+    <div class="bg-gray-900/85 backdrop-blur-sm border border-gray-700/50 rounded-xl p-4 h-full flex flex-col">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-cyan-400 text-xs font-semibold tracking-widest uppercase">实时告警</h3>
+        @if (unreadCount$ | async; as count) {
+          @if (count > 0) {
+            <span class="px-1.5 py-0.5 bg-red-500/20 text-red-400 text-xs rounded-full border border-red-500/30">
+              {{ count }} 未读
+            </span>
+          }
+        }
+      </div>
+
+      <div class="flex-1 overflow-y-auto space-y-2">
+        @if (recentAlerts$ | async; as alerts) {
+          @for (alert of alerts; track alert.id) {
+            <div class="p-3 bg-gray-800/60 border border-gray-700/30 rounded-lg hover:border-gray-600/50 transition">
+              <div class="flex items-start gap-2">
+                <div class="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0"
+                  [class.bg-red-400]="alert.level === 'critical'"
+                  [class.bg-yellow-400]="alert.level === 'warning'"
+                  [class.bg-blue-400]="alert.level === 'info'"
+                  [class.animate-pulse]="alert.status === 'unread'">
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="text-xs font-medium" [ngClass]="getAlertLevelClass(alert.level)">
+                    {{ getAlertTypeName(alert.type) }}
+                  </div>
+                  <div class="text-gray-400 text-xs mt-0.5 truncate">
+                    {{ alert.description || '暂无描述' }}
+                  </div>
+                  <div class="text-gray-600 text-xs mt-1">
+                    {{ alert.triggered_at | date:'HH:mm:ss' }}
+                  </div>
+                </div>
+              </div>
+            </div>
+          } @empty {
+            <div class="text-gray-500 text-xs text-center py-8">
+              <div class="text-3xl mb-2">✓</div>
+              暂无告警
+            </div>
+          }
+        }
+      </div>
+    </div>
+  </div>
+
+</div>

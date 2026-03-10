@@ -1,0 +1,52 @@
+<div class="p-6 space-y-5">
+  <div>
+    <h1 class="text-xl font-bold text-white">报告中心</h1>
+    <p class="text-gray-500 text-sm mt-0.5">共 {{ total() }} 份报告</p>
+  </div>
+
+  <div class="grid grid-cols-1 gap-4">
+    @if (loading()) {
+      @for (i of [1,2,3]; track i) {
+        <div class="h-32 bg-gray-900 border border-gray-800 rounded-xl animate-pulse"></div>
+      }
+    } @else {
+      @for (report of reports(); track report.id) {
+        <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 hover:border-gray-700 transition">
+          <div class="flex items-start justify-between gap-4">
+            <div class="flex-1">
+              <div class="text-white font-medium mb-2">任务报告 · {{ report.created_at | date:'yyyy-MM-dd HH:mm' }}</div>
+              <div class="grid grid-cols-4 gap-4 text-sm">
+                <div class="text-center">
+                  <div class="text-lg font-bold text-cyan-400">{{ report.vehicle_count }}</div>
+                  <div class="text-gray-500 text-xs mt-0.5">检测车辆</div>
+                </div>
+                <div class="text-center">
+                  <div class="text-lg font-bold text-green-400">{{ report.pedestrian_count }}</div>
+                  <div class="text-gray-500 text-xs mt-0.5">检测行人</div>
+                </div>
+                <div class="text-center">
+                  <div class="text-lg font-bold text-yellow-400">{{ report.flight_duration_min }}</div>
+                  <div class="text-gray-500 text-xs mt-0.5">飞行时长(min)</div>
+                </div>
+                <div class="text-center">
+                  <div class="text-lg font-bold text-red-400">{{ report.alert_count }}</div>
+                  <div class="text-gray-500 text-xs mt-0.5">告警次数</div>
+                </div>
+              </div>
+            </div>
+            <div class="flex flex-col gap-2 flex-shrink-0">
+              <button class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs rounded-lg transition">
+                查看详情
+              </button>
+              <button class="px-3 py-1.5 bg-cyan-900/40 hover:bg-cyan-900/60 text-cyan-400 text-xs rounded-lg transition border border-cyan-800">
+                导出 PDF
+              </button>
+            </div>
+          </div>
+        </div>
+      } @empty {
+        <div class="text-center py-16 text-gray-500">暂无报告，完成任务后自动生成</div>
+      }
+    }
+  </div>
+</div>
