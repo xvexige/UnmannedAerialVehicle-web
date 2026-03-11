@@ -80,22 +80,35 @@ export class Map2dUtilService {
    * @param type 'raster' 影像底图 | 'vector' 矢量底图
    * @param dark 是否应用暗色样式（矢量底图有效）
    */
-  addTdtLayer(map: Map, type: 'raster' | 'vector' = 'vector', dark = true) {
-    const maxZoom = 18;
 
-    if (type === 'raster') {
-      map.addLayer(new TileLayer({ source: new XYZ({ url: mapUrlsConfig.img_w_url, maxZoom }) }));
-      map.addLayer(new TileLayer({ source: new XYZ({ url: mapUrlsConfig.cia_w_url, maxZoom }) }));
+  /**
+   * 设置地图底图样式
+   * @param map OL 地图实例
+   * @param theme 'dark' 暗色 | 'light' 亮色
+   */
+  setMapStyle(map: Map, theme: 'dark' | 'light') {
+    const layerId = 'base-map-layer';
+
+    // 移除旧的底图
+    map.getLayers().getArray()
+      .filter(layer => layer.get('id') === layerId)
+      .forEach(layer => map.removeLayer(layer));
+
+    // 使用高德地图作为底图
+    const gaodeLayer = new TileLayer({
+      source: new XYZ({ url: 'http://wprd0{1-4}.is.autonavi.com/appmaptile?lang=zh_cn&style=7&x={x}&y={y}&z={z}', maxZoom: 18 }),
+    });
+    gaodeLayer.set('id', layerId);
+
+    // 根据主题应用 CSS 滤镜
+    if (theme === 'dark') {
+      gaodeLayer.set('className', 'dark-map-layer');
     } else {
-      map.addLayer(new TileLayer({
-        source: new XYZ({ url: mapUrlsConfig.vec_w_url, maxZoom }),
-        className: dark ? 'dark-map-layer' : '',
-      }));
-      map.addLayer(new TileLayer({
-        source: new XYZ({ url: mapUrlsConfig.cva_w_url, maxZoom }),
-        className: dark ? 'dark-map-layer' : '',
-      }));
+      gaodeLayer.set('className', '');
     }
+
+    // 将新底图添加到最底层
+    map.getLayers().insertAt(0, gaodeLayer);
   }
 
   // ─── 定位 ─────────────────────────────────────────────────────────────────────

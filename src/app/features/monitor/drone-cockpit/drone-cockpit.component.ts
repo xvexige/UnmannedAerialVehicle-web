@@ -37,6 +37,7 @@ export class DroneCockpitComponent implements OnInit, OnDestroy, AfterViewInit {
   private destroy$ = new Subject<void>();
 
   private miniMap!: Map;
+  currentTheme = signal<'dark' | 'light'>('dark');
 
   droneId = signal('');
   drone = signal<any>(null);
@@ -75,6 +76,11 @@ export class DroneCockpitComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
+  toggleMapTheme() {
+    this.currentTheme.update(theme => theme === 'dark' ? 'light' : 'dark');
+    this.mapUtil.setMapStyle(this.miniMap, this.currentTheme());
+  }
+
   loadDroneData(id: string) {
     this.http.get<any>(`/drones/${id}`).subscribe(res => {
       if (res.code === 200) this.drone.set(res.data);
@@ -93,7 +99,7 @@ export class DroneCockpitComponent implements OnInit, OnDestroy, AfterViewInit {
   private initMiniMap() {
     if (!this.miniMapContainer) return;
     this.miniMap = this.mapUtil.initMap(this.miniMapContainer.nativeElement, [116.397, 39.909], 12);
-    this.mapUtil.addTdtLayer(this.miniMap, 'vector', true);
+    this.mapUtil.setMapStyle(this.miniMap, this.currentTheme());
     this.mapService.setMapInstance(`/monitor/${this.droneId()}`, this.miniMap);
   }
 

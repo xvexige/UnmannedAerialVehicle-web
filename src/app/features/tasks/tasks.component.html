@@ -53,6 +53,18 @@
       }
     }
   </div>
+
+  <!-- 分页 -->
+  <div class="flex items-center justify-between text-sm text-gray-500">
+    <span>共 {{ total() }} 条</span>
+    <div class="flex items-center gap-2">
+      <button (click)="changePage(page() - 1)" [disabled]="page() === 1"
+        class="px-2.5 py-1.5 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition">上一页</button>
+      <span>第 {{ page() }} / {{ totalPages() }} 页</span>
+      <button (click)="changePage(page() + 1)" [disabled]="page() === totalPages()"
+        class="px-2.5 py-1.5 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition">下一页</button>
+    </div>
+  </div>
 </div>
 
 @if (showCreateModal()) {

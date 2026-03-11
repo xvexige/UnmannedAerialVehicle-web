@@ -3,7 +3,11 @@
   <div class="flex items-center justify-between">
     <div>
       <h1 class="text-xl font-bold text-white">设备管理</h1>
-      <p class="text-gray-500 text-sm mt-0.5">共 {{ total() }} 台设备</p>
+      @if (loading()) {
+        <p class="text-gray-500 text-sm mt-0.5">正在加载...</p>
+      } @else {
+        <p class="text-gray-500 text-sm mt-0.5">共 {{ total() }} 台设备</p>
+      }
     </div>
     <button (click)="showBindModal.set(true)"
       class="flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-sm rounded-lg transition">
@@ -99,8 +103,19 @@
                 <div class="flex items-center gap-2">
                   <button (click)="goMonitor(drone.id)"
                     class="text-xs text-cyan-400 hover:text-cyan-300 transition">监控</button>
-                  <button (click)="unbind(drone.id)"
-                    class="text-xs text-red-400 hover:text-red-300 transition">解绑</button>
+                  <button (click)="unbind(drone.id)" [disabled]="unbindingId() === drone.id"
+                    class="text-xs text-red-400 hover:text-red-300 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                    @if (unbindingId() === drone.id) {
+                      <div class="flex items-center gap-1">
+                        <svg class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M4 9a9 9 0 109 9" />
+                        </svg>
+                        解绑中...
+                      </div>
+                    } @else {
+                      解绑
+                    }
+                  </button>
                 </div>
               </td>
             </tr>

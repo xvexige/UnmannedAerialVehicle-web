@@ -4,6 +4,8 @@ import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { Drone } from '../../shared/models/api.model';
 import { Router } from '@angular/router';
+import { Store } from '@ngrx/store';
+import { DroneActions } from '../../store/drone/drone.actions';
 
 @Component({
   selector: 'app-drones',
@@ -15,6 +17,7 @@ export class DronesComponent implements OnInit {
   private http = inject(HttpClient);
   private fb = inject(FormBuilder);
   private router = inject(Router);
+  private store = inject(Store);
 
   drones = signal<Drone[]>([]);
   total = signal(0);
@@ -23,6 +26,7 @@ export class DronesComponent implements OnInit {
   showBindModal = signal(false);
   bindError = signal('');
   bindLoading = signal(false);
+  unbindingId = signal<string | null>(null);
 
   bindForm = this.fb.group({
     name: ['', Validators.required],
@@ -54,7 +58,7 @@ export class DronesComponent implements OnInit {
     this.bindError.set('');
     this.http.post<any>('/drones', this.bindForm.value).subscribe({
       next: res => {
-        if (res.code === 200) { this.showBindModal.set(false); this.load(); }
+        if (res.code === 200) { this.showBindModal.set(false); this.load(); this.store.dispatch(DroneActions.reloadDrones()); }
         else this.bindError.set(res.message);
         this.bindLoading.set(false);
       },
@@ -64,7 +68,22 @@ export class DronesComponent implements OnInit {
 
   unbind(id: string) {
     if (!confirm('确认解绑该设备？')) return;
-    this.http.delete<any>(`/drones/${id}`).subscribe(() => this.load());
+
+    const originalDrones = [...this.drones()];
+    this.drones.update(drones => drones.filter(d => d.id !== id));
+    this.unbindingId.set(id);
+
+    this.http.delete<any>(`/drones/${id}`).subscribe({
+      next: () => {
+        this.total.update(t => t - 1);
+        this.unbindingId.set(null);
+      },
+      error: () => {
+        this.drones.set(originalDrones);
+        this.unbindingId.set(null);
+        alert('解绑失败，请重试');
+      },
+    });
   }
 
   goMonitor(id: string) { this.router.navigate(['/monitor', id]); }

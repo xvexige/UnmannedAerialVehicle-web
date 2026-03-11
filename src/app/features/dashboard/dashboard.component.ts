@@ -16,6 +16,8 @@ import { DroneActions } from '../../store/drone/drone.actions';
 import { DashboardOverview } from '../../shared/models/api.model';
 import Map from 'ol/Map';
 
+import { Actions, ofType } from '@ngrx/effects';
+
 @Component({
   selector: 'app-dashboard',
   standalone: true,
@@ -30,6 +32,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   private router = inject(Router);
   private mapUtil = inject(Map2dUtilService);
   private mapService = inject(MapService);
+  private actions$ = inject(Actions);
   private destroy$ = new Subject<void>();
 
   overview = signal<DashboardOverview | null>(null);
@@ -44,9 +47,14 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   });
 
   private map!: Map;
+  currentTheme = signal<'dark' | 'light'>('dark');
 
   ngOnInit() {
     this.loadData();
+    this.actions$.pipe(
+      ofType(DroneActions.reloadDrones),
+      takeUntil(this.destroy$),
+    ).subscribe(() => this.loadData());
   }
 
   ngAfterViewInit() {
@@ -59,7 +67,12 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     // 保留地图实例供 mapService 管理，不直接销毁
   }
 
-  private loadData() {
+  toggleMapTheme() {
+    this.currentTheme.update(theme => theme === 'dark' ? 'light' : 'dark');
+    this.mapUtil.setMapStyle(this.map, this.currentTheme());
+  }
+
+  loadData() {
     forkJoin({
       overview: this.http.get<any>('/dashboard/overview'),
       drones: this.http.get<any>('/dashboard/drones/map'),
@@ -94,8 +107,8 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     // 注册到 MapService，其他组件可通过 mapService.getMapInstance 访问
     this.mapService.setMapInstance('/dashboard', this.map);
 
-    // 添加天地图矢量暗色底图
-    this.mapUtil.addTdtLayer(this.map, 'vector', true);
+    // 设置初始底图样式
+    this.mapUtil.setMapStyle(this.map, this.currentTheme());
 
     // 添加无人机标注，点击进入单机监控舱
     this.mapUtil.addDroneMarkers(this.map, this.drones(), (drone) => {

@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
@@ -16,6 +16,8 @@ export class TasksComponent implements OnInit {
 
   tasks = signal<Task[]>([]);
   total = signal(0);
+  page = signal(1);
+  totalPages = computed(() => Math.ceil(this.total() / 10));
   loading = signal(true);
   showCreateModal = signal(false);
   createLoading = signal(false);
@@ -40,13 +42,22 @@ export class TasksComponent implements OnInit {
 
   load() {
     this.loading.set(true);
-    this.http.get<any>('/tasks?page=1&size=20').subscribe({
+    this.http.get<any>(`/tasks?page=${this.page()}&size=10`).subscribe({
       next: res => {
-        if (res.code === 200) { this.tasks.set(res.data.list); this.total.set(res.data.total); }
+        if (res.code === 200) {
+          this.tasks.set(res.data.list);
+          this.total.set(res.data.total);
+        }
         this.loading.set(false);
       },
       error: () => this.loading.set(false),
     });
+  }
+
+  changePage(newPage: number) {
+    if (newPage < 1 || newPage > this.totalPages()) return;
+    this.page.set(newPage);
+    this.load();
   }
 
   create() {
