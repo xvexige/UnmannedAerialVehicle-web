@@ -104,19 +104,13 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
       5,
     );
 
-    // 注册到 MapService，其他组件可通过 mapService.getMapInstance 访问
     this.mapService.setMapInstance('/dashboard', this.map);
-
-    // 设置初始底图样式
     this.mapUtil.setMapStyle(this.map, this.currentTheme());
 
-    // 添加无人机标注，点击进入单机监控舱
+    // 点击地图上的无人机：直接进入单机监控界面
     this.mapUtil.addDroneMarkers(this.map, this.drones(), (drone) => {
       this.router.navigate(['/monitor', drone.id]);
     });
-
-    // WebSocket 实时更新无人机位置
-    // DroneActions.updateLocation 已在 ws.service 中 dispatch，这里直接用 store 订阅
   }
 
   navigateToMonitor(droneId: string) {

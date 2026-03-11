@@ -13,4 +13,6 @@ export interface DroneMapMarker {
   status: 'online' | 'offline' | 'in_task';
   battery_level: number | null;
   pilot_name?: string | null;
+  /** 是否为南昌模拟机（用于大屏演示与视频识别入口） */
+  simulated?: boolean;
 }

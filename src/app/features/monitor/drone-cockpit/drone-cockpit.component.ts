@@ -23,11 +23,29 @@ interface Detection {
   standalone: true,
   imports: [CommonModule, RouterLink],
   templateUrl: './drone-cockpit.component.html',
+  styles: [
+    `
+      .pie-slice {
+        transform-origin: 80px 80px;
+      }
+      .pie-slice-hover {
+        transform: scale(1.08);
+        filter: brightness(1.2);
+      }
+      .bar-item .bar-fill {
+        transform-origin: left center;
+      }
+      .bar-item:hover .bar-fill {
+        box-shadow: 0 -1px 0 rgba(255,255,255,0.15), 2px 2px 10px rgba(6,182,212,0.4);
+      }
+    `,
+  ],
 })
 export class DroneCockpitComponent implements OnInit, OnDestroy, AfterViewInit {
   @ViewChild('videoEl') videoEl!: ElementRef<HTMLVideoElement>;
   @ViewChild('canvasEl') canvasEl!: ElementRef<HTMLCanvasElement>;
   @ViewChild('miniMapContainer') miniMapContainer!: ElementRef<HTMLDivElement>;
+  @ViewChild('uploadFileInput') uploadFileInput!: ElementRef<HTMLInputElement>;
 
   private route = inject(ActivatedRoute);
   private http = inject(HttpClient);
@@ -49,6 +67,19 @@ export class DroneCockpitComponent implements OnInit, OnDestroy, AfterViewInit {
   rightPanelOpen = signal(true);
   videoLoading = signal(true);
   recentEvents = signal<any[]>([]);
+
+  /** 本机上传识别：是否正在上传 */
+  uploadDetecting = signal(false);
+  /** 上传识别结果：标注图 base64 */
+  annotatedImageBase64 = signal<string | null>(null);
+  /** 上传识别得到的检测列表（用于右侧图表） */
+  uploadDetections = signal<Detection[]>([]);
+  /** 右侧统计图类型：bar | pie */
+  chartType = signal<'bar' | 'pie'>('bar');
+  /** 饼图当前悬停的类别（用于高亮对应扇形与图例） */
+  hoveredPieSlice = signal<string | null>(null);
+  /** 上传识别错误信息 */
+  uploadError = signal<string | null>(null);
 
   private hls: Hls | null = null;
   private animFrame: number | null = null;
@@ -236,5 +267,135 @@ export class DroneCockpitComponent implements OnInit, OnDestroy, AfterViewInit {
 
   requestFullscreen(): void {
     this.videoEl?.nativeElement?.requestFullscreen?.();
+  }
+
+  /** 是否正在显示上传识别结果（中央显示标注图） */
+  hasUploadResult(): boolean {
+    return this.annotatedImageBase64() != null;
+  }
+
+  /** 打开本机图片/视频选择器进行识别 */
+  openUploadPicker(): void {
+    this.uploadError.set(null);
+    this.uploadFileInput?.nativeElement?.click();
+  }
+
+  onUploadFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    this.uploadDetecting.set(true);
+    this.uploadError.set(null);
+    this.annotatedImageBase64.set(null);
+    this.uploadDetections.set([]);
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    this.http
+      .post<{ code: number; message?: string; data?: { detections: Detection[]; image_base64?: string } }>(
+        '/ai/detect',
+        formData
+      )
+      .subscribe({
+        next: (res) => {
+          if (res.code === 200 && res.data) {
+            this.uploadDetections.set(res.data.detections ?? []);
+            this.annotatedImageBase64.set(res.data.image_base64 ?? null);
+          } else {
+            this.uploadError.set(res.message ?? '识别失败');
+          }
+          this.uploadDetecting.set(false);
+        },
+        error: (err) => {
+          this.uploadError.set(err.error?.message ?? err.message ?? '请求失败');
+          this.uploadDetecting.set(false);
+        },
+      });
+    input.value = '';
+  }
+
+  /** 关闭标注图，返回实时画面 */
+  clearUploadResult(): void {
+    this.annotatedImageBase64.set(null);
+    this.uploadDetections.set([]);
+    this.uploadError.set(null);
+  }
+
+  /** 上传识别结果按类别汇总（用于右侧图表） */
+  getUploadSummary(): { class: string; count: number }[] {
+    const counts: Record<string, number> = {};
+    this.uploadDetections().forEach((d) => {
+      counts[d.class] = (counts[d.class] ?? 0) + 1;
+    });
+    return Object.entries(counts).map(([cls, count]) => ({ class: cls, count }));
+  }
+
+  /** 上传识别汇总中的最大 count（柱状图比例用） */
+  getUploadSummaryMaxCount(): number {
+    const s = this.getUploadSummary();
+    return s.length ? Math.max(...s.map((i) => i.count)) : 0;
+  }
+
+  /** 饼图 conic-gradient 所需：每段占比与颜色 */
+  getPieSegments(): { class: string; count: number; startPct: number; endPct: number; color: string }[] {
+    const summary = this.getUploadSummary();
+    const total = summary.reduce((s, i) => s + i.count, 0);
+    if (total === 0) return [];
+    const colors: Record<string, string> = {
+      car: '#00d4ff',
+      truck: '#ff6b35',
+      bus: '#ffd23f',
+      pedestrian: '#06ffa5',
+      motorcycle: '#c77dff',
+    };
+    let acc = 0;
+    return summary.map((s) => {
+      const startPct = (acc / total) * 100;
+      acc += s.count;
+      const endPct = (acc / total) * 100;
+      return {
+        ...s,
+        startPct,
+        endPct,
+        color: colors[s.class.toLowerCase()] ?? '#94a3b8',
+      };
+    });
+  }
+
+  /** 饼图 SVG 每段 path d（圆心 80,80 半径 72，从顶部顺时针） */
+  getPieSegmentPath(seg: { startPct: number; endPct: number }): string {
+    const cx = 80;
+    const cy = 80;
+    const r = 72;
+    const startAngle = (seg.startPct / 100) * 2 * Math.PI - Math.PI / 2;
+    const endAngle = (seg.endPct / 100) * 2 * Math.PI - Math.PI / 2;
+    const x1 = cx + r * Math.cos(startAngle);
+    const y1 = cy + r * Math.sin(startAngle);
+    const x2 = cx + r * Math.cos(endAngle);
+    const y2 = cy + r * Math.sin(endAngle);
+    const large = endAngle - startAngle > Math.PI ? 1 : 0;
+    return `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} Z`;
+  }
+
+  /** 饼图每段 3D 渐变 id（避免重复） */
+  pieGradientId(seg: { class: string }): string {
+    return 'pie-grad-' + seg.class.replace(/\s/g, '_');
+  }
+
+  /** 柱状图/饼图类别对应颜色 */
+  getChartColor(cls: string): string {
+    const colors: Record<string, string> = {
+      car: '#06b6d4',
+      truck: '#f97316',
+      bus: '#eab308',
+      pedestrian: '#22c55e',
+      motorcycle: '#a855f7',
+    };
+    return colors[cls.toLowerCase()] ?? '#64748b';
+  }
+
+  toggleChartType(): void {
+    this.chartType.update((t) => (t === 'bar' ? 'pie' : 'bar'));
   }
 }
